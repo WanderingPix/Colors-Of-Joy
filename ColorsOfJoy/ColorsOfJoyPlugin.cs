@@ -10,7 +10,7 @@ using Reactor.Utilities;
 
 namespace ColorsOfJoy;
 
-[BepInAutoPlugin]
+[BepInAutoPlugin("com.missingpixel.colorsofjoy", "Colors Of Joy", "1.0.0")]
 [ReactorModFlags(ModFlags.RequireOnAllClients)]
 [BepInProcess("Among Us.exe")]
 [BepInDependency(ReactorPlugin.Id)]
@@ -23,5 +23,6 @@ public partial class ColorsOfJoyPlugin : BasePlugin
         Harmony.PatchAll();
         LastSetColor = Config.Bind("Data", "Last Set Color Index", 0);
         CustomColorsDataManager.LoadData();
+        ReactorCredits.Register<ColorsOfJoyPlugin>(_ => true);
     }
 }
