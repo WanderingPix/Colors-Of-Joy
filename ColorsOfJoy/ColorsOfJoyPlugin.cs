@@ -10,7 +10,7 @@ using Reactor.Utilities;
 
 namespace ColorsOfJoy;
 
-[BepInAutoPlugin("com.missingpixel.colorsofjoy", "Colors Of Joy", "1.0.0")]
+[BepInAutoPlugin("com.missingpixel.colorsofjoy", "Colors Of Joy", "1.0.1")]
 [ReactorModFlags(ModFlags.RequireOnAllClients)]
 [BepInProcess("Among Us.exe")]
 [BepInDependency(ReactorPlugin.Id)]

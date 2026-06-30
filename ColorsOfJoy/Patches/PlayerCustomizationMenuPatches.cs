@@ -70,135 +70,155 @@ public class PlayerTabPatches
     private static CustomPlayerColor currentlyBeingCreatedColor = new(mainColor: Palette.PlayerColors[0],
         name: "New Color", secondaryColor: Palette.ShadowColors[0], visorColor: Palette.VisorColor);
     
-    private static BoxCollider2D? _collider;
+    private static BoxCollider2D _collider;
     [HarmonyPatch(nameof(PlayerTab.OnEnable))]
     [HarmonyPostfix]
     public static void PlayerTab_OnEnable_Postfix(PlayerTab __instance)
     {
-        SetUpScroller(__instance);
-        __instance.PlayerPreview.GetComponent<ExtendedPoolablePlayer>().Destroy();
-        foreach (var existingChip in __instance.ColorChips)
+        __instance.StartCoroutine(Effects.ActionAfterDelay(0.01f, new System.Action(() =>
         {
-            existingChip.gameObject.Destroy();
-        }
-
-        __instance.ColorChips = new();
-        foreach (var col in CustomColorsDataManager.Colors)
-        {
-            CreateColorChip(__instance, col).Button.OnClick.Invoke();
-        }
-        
-        if (!PlayerCustomizationMenu.Instance)
-        {
-            return;
-        }
-
-        if (PlayerControl.LocalPlayer == null || HudManager.Instance == null) return; //No color creation in main menu.
-        if (ColorCreationUI != null) return;
-        UpdatePreview(__instance, PlayerControl.LocalPlayer.GetComponent<PlayerColorData>().Color);
-        ColorCreationUI = new GameObject("ColorCreationUI");
-        ColorCreationUI.transform.SetParent(__instance.transform);
-        ColorCreationUI.transform.position = __instance.transform.position;
-        ColorCreationUI.SetActive(false);
-        var buttonPrefab = Object.FindObjectOfType<OptionsMenuBehaviour>(true).EnableFriendInvitesButton
-            .GetComponent<PassiveButton>();
-        var newColorButton = Object.Instantiate(buttonPrefab, __instance.transform.GetChild(0));
-        newColorButton.GetComponent<ToggleButtonBehaviour>().Destroy();
-        newColorButton.transform.localPosition = new Vector3(0.25f, 0, -10);
-        newColorButton.transform.SetParent(__instance.transform, true);
-        newColorButton.GetComponentInChildren<TextMeshPro>().text = "New Color";
-        newColorButton.OnClick = new();
-        newColorButton.OnClick.AddListener(new Action(() =>
-        {
-            bool active = !ColorCreationUI.gameObject.active;
-            ColorCreationUI.gameObject.SetActive(!ColorCreationUI.gameObject.active);
-            foreach (var chip in __instance.ColorChips)
+            SetUpScroller(__instance);
+            __instance.PlayerPreview.GetComponent<ExtendedPoolablePlayer>().Destroy();
+            foreach (var existingChip in __instance.ColorChips)
             {
-                chip.gameObject.SetActive(!active);
+                existingChip.gameObject.Destroy();
             }
-            UpdatePreview(__instance);
-        }));
 
-        CreateMenu(__instance.transform, new Vector3(-4, 1, -10), () => currentlyBeingCreatedColor.MainColor, __instance, PlayerColorTypes.Main);
-        CreateMenu(__instance.transform, new Vector3(-1.5f, 1, -10), () => currentlyBeingCreatedColor.SecondaryColor, __instance, PlayerColorTypes.Shadow);
-        CreateMenu(__instance.transform, new Vector3(-2.75f, -1, -10), () => currentlyBeingCreatedColor.VisorColor, __instance, PlayerColorTypes.Visor);
-        var saveButton = Object.Instantiate(buttonPrefab, ColorCreationUI.transform);
-        saveButton.GetComponent<ToggleButtonBehaviour>().Destroy();
-        saveButton.transform.localPosition = new Vector3(-1f, -2.3f, -50);
-        saveButton.transform.localScale = Vector3.one * 0.8f;
-        saveButton.GetComponentInChildren<TextMeshPro>().text = "Save";
-        saveButton.OnClick = new Button.ButtonClickedEvent();
-        saveButton.OnClick.AddListener(new Action(() =>
-        {
-            ColorCreationUI.gameObject.SetActive(false);
-            foreach (var chip in __instance.ColorChips)
+            __instance.ColorChips = new();
+            foreach (var col in CustomColorsDataManager.Colors)
             {
-                chip.gameObject.SetActive(true);
+                CreateColorChip(__instance, col).Button.OnClick.Invoke();
+            }
+
+            if (!PlayerCustomizationMenu.Instance)
+            {
+                return;
+            }
+
+            if (PlayerControl.LocalPlayer == null || HudManager.Instance == null)
+                return; //No color creation in main menu.
+            if (ColorCreationUI != null)
+            {
+                ColorCreationUI.gameObject.SetActive(false);
+                return;
+                
             }
             UpdatePreview(__instance, PlayerControl.LocalPlayer.GetComponent<PlayerColorData>().Color);
-            CustomColorsDataManager.Save(currentlyBeingCreatedColor);
-            CreateColorChip(__instance, currentlyBeingCreatedColor).Button.OnClick.Invoke();
-        }));
-        var cancelButton = Object.Instantiate(buttonPrefab, ColorCreationUI.transform);
-        cancelButton.GetComponent<ToggleButtonBehaviour>().Destroy();
-        cancelButton.transform.localPosition = new Vector3(1f, -2.3f, -50);
-        cancelButton.transform.localScale = Vector3.one * 0.8f;
-        cancelButton.GetComponentInChildren<TextMeshPro>().text = "Cancel";
-        cancelButton.OnClick = new Button.ButtonClickedEvent();
-        cancelButton.OnClick.AddListener(new Action(() =>
-        {
-            ColorCreationUI.gameObject.SetActive(false);
-            foreach (var chip in __instance.ColorChips)
+            ColorCreationUI = new GameObject("ColorCreationUI");
+            ColorCreationUI.transform.SetParent(__instance.transform);
+            ColorCreationUI.transform.position = __instance.transform.position;
+            ColorCreationUI.SetActive(false);
+            var buttonPrefab = Object.FindObjectOfType<OptionsMenuBehaviour>(true).EnableFriendInvitesButton
+                .GetComponent<PassiveButton>();
+            var newColorButton = Object.Instantiate(buttonPrefab, __instance.transform.GetChild(0));
+            newColorButton.GetComponent<ToggleButtonBehaviour>().Destroy();
+            newColorButton.transform.localPosition = new Vector3(0.25f, 0, -10);
+            newColorButton.transform.SetParent(__instance.transform, true);
+            newColorButton.GetComponentInChildren<TextMeshPro>().text = "New Color";
+            newColorButton.OnClick = new();
+            newColorButton.OnClick.AddListener(new Action(() =>
             {
-                chip.gameObject.SetActive(true);
-            }
-            UpdatePreview(__instance, PlayerControl.LocalPlayer.GetComponent<PlayerColorData>().Color);
-        }));
-        var openDirectoryButton = Object.Instantiate(newColorButton, newColorButton.transform.parent);
-        openDirectoryButton.GetComponentInChildren<TextMeshPro>().text = "";
-        openDirectoryButton.GetComponent<BoxCollider2D>().size = Vector2.one;
-        var dirSpriteRenderer = openDirectoryButton.transform.GetChild(0).GetComponent<SpriteRenderer>();
-        dirSpriteRenderer.sprite =
-            SpriteTools.LoadSpriteFromPath("ColorsOfJoy.Resources.FolderIcon.png",
-                Assembly.GetAssembly(typeof(PlayerTabPatches)), 256);
-        dirSpriteRenderer.size = Vector2.one;
-        openDirectoryButton.transform.GetChild(1).gameObject.SetActive(false);
-        openDirectoryButton.OnClick = new Button.ButtonClickedEvent();
-        openDirectoryButton.transform.position = newColorButton.transform.position + new Vector3(2, 0, 0);
-        openDirectoryButton.OnClick = new Button.ButtonClickedEvent();
-        openDirectoryButton.OnClick.AddListener(new System.Action(() =>
-        {
-            Process.Start("explorer.exe", CustomColorsDataManager.GetPath());
-        }));
-        var refreshButton = Object.Instantiate(openDirectoryButton, newColorButton.transform.parent);
-        var refreshSpriteRenderer = refreshButton.transform.GetChild(0).GetComponent<SpriteRenderer>();
-        refreshSpriteRenderer.sprite =
-            SpriteTools.LoadSpriteFromPath("ColorsOfJoy.Resources.RefreshIcon.png",
-                Assembly.GetAssembly(typeof(PlayerTabPatches)), 256);
-        refreshSpriteRenderer.size = Vector2.one;
-        refreshButton.OnClick = new Button.ButtonClickedEvent();
-        refreshButton.transform.localPosition += new Vector3(1, 0, 0);
-        refreshButton.OnClick.AddListener(new System.Action(() =>
-        {
-            CustomColorsDataManager.LoadData();
-            __instance.OnDisable();
-            __instance.OnEnable();
-        }));
-        var nameField = Object.Instantiate(HudManager.Instance.Chat.freeChatField);
-        nameField.submitButton.gameObject.SetActive(false);
-        nameField.SetCanSubmit(false);
-        nameField.transform.position = PlayerCustomizationMenu.Instance.itemName.transform.position - new Vector3(0, 0, 50);
-        // ReSharper disable once Unity.InstantiateWithoutParent
-        nameField.transform.SetParent(ColorCreationUI.transform, true);
-        Vector3 pos = nameField.transform.position;
-        nameField.transform.localScale = Vector3.one / 2f;
-        nameField.OnChangedEvent = new Action(() =>
-        {
-            currentlyBeingCreatedColor.Name = nameField.Text;
-            nameField.transform.position = pos;
-        });
-        __instance.SetScrollerBounds();
-        __instance.StartCoroutine(Effects.ActionAfterDelay(0.1f, new System.Action(() => nameField.transform.position = pos)));
+                bool active = !ColorCreationUI.gameObject.active;
+                ColorCreationUI.gameObject.SetActive(!ColorCreationUI.gameObject.active);
+                foreach (var chip in __instance.ColorChips)
+                {
+                    chip.gameObject.SetActive(!active);
+                }
+
+                UpdatePreview(__instance);
+            }));
+
+            CreateMenu(__instance.transform, new Vector3(-4, 1, -10), () => currentlyBeingCreatedColor.MainColor,
+                __instance, PlayerColorTypes.Main);
+            CreateMenu(__instance.transform, new Vector3(-1.5f, 1, -10),
+                () => currentlyBeingCreatedColor.SecondaryColor, __instance, PlayerColorTypes.Shadow);
+            CreateMenu(__instance.transform, new Vector3(-2.75f, -1, -10), () => currentlyBeingCreatedColor.VisorColor,
+                __instance, PlayerColorTypes.Visor);
+            var saveButton = Object.Instantiate(buttonPrefab, ColorCreationUI.transform);
+            saveButton.GetComponent<ToggleButtonBehaviour>().Destroy();
+            saveButton.transform.localPosition = new Vector3(-1f, -2.3f, -50);
+            saveButton.transform.localScale = Vector3.one * 0.8f;
+            saveButton.GetComponentInChildren<TextMeshPro>().text = "Save";
+            saveButton.OnClick = new Button.ButtonClickedEvent();
+            saveButton.OnClick.AddListener(new Action(() =>
+            {
+                ColorCreationUI.gameObject.SetActive(false);
+                foreach (var chip in __instance.ColorChips)
+                {
+                    chip.gameObject.SetActive(true);
+                }
+
+                UpdatePreview(__instance, PlayerControl.LocalPlayer.GetComponent<PlayerColorData>().Color);
+                CustomColorsDataManager.Save(currentlyBeingCreatedColor);
+                CreateColorChip(__instance, currentlyBeingCreatedColor).Button.OnClick.Invoke();
+            }));
+            var cancelButton = Object.Instantiate(buttonPrefab, ColorCreationUI.transform);
+            cancelButton.GetComponent<ToggleButtonBehaviour>().Destroy();
+            cancelButton.transform.localPosition = new Vector3(1f, -2.3f, -50);
+            cancelButton.transform.localScale = Vector3.one * 0.8f;
+            cancelButton.GetComponentInChildren<TextMeshPro>().text = "Cancel";
+            cancelButton.OnClick = new Button.ButtonClickedEvent();
+            cancelButton.OnClick.AddListener(new Action(() =>
+            {
+                ColorCreationUI.gameObject.SetActive(false);
+                foreach (var chip in __instance.ColorChips)
+                {
+                    chip.gameObject.SetActive(true);
+                }
+
+                UpdatePreview(__instance, PlayerControl.LocalPlayer.GetComponent<PlayerColorData>().Color);
+            }));
+            var openDirectoryButton = Object.Instantiate(newColorButton, newColorButton.transform.parent);
+            openDirectoryButton.GetComponentInChildren<TextMeshPro>().text = "";
+            openDirectoryButton.GetComponent<BoxCollider2D>().size = Vector2.one;
+            var dirSpriteRenderer = openDirectoryButton.transform.GetChild(0).GetComponent<SpriteRenderer>();
+            dirSpriteRenderer.sprite =
+                SpriteTools.LoadSpriteFromPath("ColorsOfJoy.Resources.FolderIcon.png",
+                    Assembly.GetAssembly(typeof(PlayerTabPatches)), 256);
+            dirSpriteRenderer.size = Vector2.one;
+            openDirectoryButton.transform.GetChild(1).gameObject.SetActive(false);
+            openDirectoryButton.OnClick = new Button.ButtonClickedEvent();
+            openDirectoryButton.transform.position = newColorButton.transform.position + new Vector3(2, 0, 0);
+            openDirectoryButton.OnClick = new Button.ButtonClickedEvent();
+            openDirectoryButton.OnClick.AddListener(new System.Action(() =>
+            {
+                Process.Start("explorer.exe", CustomColorsDataManager.GetPath());
+            }));
+            var refreshButton = Object.Instantiate(openDirectoryButton, newColorButton.transform.parent);
+            var refreshSpriteRenderer = refreshButton.transform.GetChild(0).GetComponent<SpriteRenderer>();
+            refreshSpriteRenderer.sprite =
+                SpriteTools.LoadSpriteFromPath("ColorsOfJoy.Resources.RefreshIcon.png",
+                    Assembly.GetAssembly(typeof(PlayerTabPatches)), 256);
+            refreshSpriteRenderer.size = Vector2.one;
+            refreshButton.OnClick = new Button.ButtonClickedEvent();
+            refreshButton.transform.localPosition += new Vector3(1, 0, 0);
+            refreshButton.OnClick.AddListener(new System.Action(() =>
+            {
+                CustomColorsDataManager.LoadData();
+                __instance.OnDisable();
+                __instance.OnEnable();
+            }));
+            var nameField = Object.Instantiate(HudManager.Instance.Chat.freeChatField);
+            nameField.submitButton.gameObject.SetActive(false);
+            nameField.SetCanSubmit(false);
+            nameField.charCountText.enabled = false;
+            nameField.transform.localScale = new(0.5f, 1, 1);
+            nameField.textArea.outputText.transform.localScale = new(2, 1f, 1);
+            nameField.transform.position =
+                PlayerCustomizationMenu.Instance.itemName.transform.position - new Vector3(0, 0, 50);
+            // ReSharper disable once Unity.InstantiateWithoutParent
+            nameField.transform.SetParent(ColorCreationUI.transform, true);
+            Vector3 pos = nameField.transform.position;
+            nameField.transform.localScale = new(0.5f, 1, 1);
+            nameField.OnChangedEvent = new Action(() =>
+            {
+                currentlyBeingCreatedColor.Name = nameField.Text;
+                nameField.transform.position = pos;
+            });
+            __instance.SetScrollerBounds();
+            __instance.StartCoroutine(Effects.ActionAfterDelay(0.1f,
+                new System.Action(() => nameField.transform.position = pos)));
+        })));
     }
 
     private static void SetUpScroller(PlayerTab playerTab)
@@ -233,7 +253,7 @@ public class PlayerTabPatches
         var sliderCol = slider.Bar.GetComponent<BoxCollider2D>();
         sliderCol.size = new Vector2(0.05f, 3f);
         sliderCol.offset = new Vector2(0, 0f);
-        if (OperatingSystem.IsAndroid()) sliderCol.size *= 1.5f;
+        if (OperatingSystem.IsAndroid()) sliderCol.size *= 2f;
         slider.Dot.transform.localPosition = new Vector3(0, slider.Dot.transform.localPosition.y, -10);
         slider.Title.transform.position = slider.Bar.transform.position - new Vector3(0, 1);
         slider.OnValueChange = new();
@@ -309,8 +329,9 @@ public class PlayerTabPatches
         int index = tab.ColorChips.Count;
         float x = tab.XRange.Lerp((float) (index % 4) / 3f);
         float y = tab.YStart - (float) (index / 4f) * tab.YOffset;
-        ColorChip colorChip = Object.Instantiate<ColorChip>(tab.ColorTabPrefab, tab.scroller.Inner, true);
+        ColorChip colorChip = Object.Instantiate<ColorChip>(tab.ColorTabPrefab, tab.ColorTabArea, true);
         colorChip.transform.localPosition = new Vector3(x, y, -1f);
+        colorChip.transform.SetParent(tab.scroller.Inner, true);
         colorChip.Inner.SpriteColor = color.MainColor;
         tab.ColorChips.Add(colorChip);
         if (true)
